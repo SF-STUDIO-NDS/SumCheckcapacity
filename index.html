@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Capacity Check — Response Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --navy:#1B2538;
+    --navy-soft:#26324A;
+    --paper:#F4F2EE;
+    --card:#FFFFFF;
+    --line:#E4E0D8;
+    --ink:#1B2538;
+    --ink-soft:#5C6478;
+    --green:#1F9E76;
+    --green-soft:#E4F5EE;
+    --amber:#E08A2E;
+    --amber-soft:#FBEDDC;
+    --red:#C8553D;
+    --shadow: 0 1px 2px rgba(27,37,56,0.04), 0 8px 24px rgba(27,37,56,0.06);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Sans Thai', sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:'IBM Plex Mono','IBM Plex Sans Thai',monospace; font-feature-settings:"tnum";}
+
+  /* ===== Top bar ===== */
+  .topbar{
+    background:var(--navy);
+    color:#fff;
+    padding:28px 36px 64px;
+    position:relative;
+    overflow:hidden;
+  }
+  .topbar::before{
+    content:"";
+    position:absolute;
+    right:-80px; top:-120px;
+    width:320px; height:320px;
+    border-radius:50%;
+    background:radial-gradient(circle at 30% 30%, rgba(31,158,118,0.35), transparent 70%);
+  }
+  .topbar-inner{ position:relative; z-index:1; max-width:1180px; margin:0 auto; }
+  .eyebrow{
+    font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+    color:#9CA8C2; margin:0 0 10px;
+  }
+  .topbar h1{
+    margin:0; font-size:30px; font-weight:600; letter-spacing:-0.01em;
+  }
+  .topbar p.sub{
+    margin:8px 0 0; color:#B7C0D6; font-size:14.5px; max-width:560px; line-height:1.6;
+  }
+
+  /* ===== Upload card (floats over topbar) ===== */
+  .upload-wrap{ max-width:1180px; margin:-40px auto 0; padding:0 36px; position:relative; z-index:2; }
+  .upload-card{
+    background:var(--card);
+    border:1.5px dashed #C7CCD8;
+    border-radius:14px;
+    padding:20px 24px;
+    display:flex; align-items:center; gap:18px;
+    box-shadow:var(--shadow);
+    transition:border-color .15s, background .15s;
+  }
+  .upload-card.dragover{
+    border-color:var(--green);
+    background:var(--green-soft);
+  }
+  .upload-icon{
+    width:44px; height:44px; flex:0 0 auto;
+    border-radius:10px;
+    background:var(--paper);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .upload-text{ flex:1; min-width:0; }
+  .upload-text strong{ font-size:14.5px; font-weight:600; }
+  .upload-text span{ display:block; font-size:13px; color:var(--ink-soft); margin-top:2px; }
+  .upload-meta{ font-size:12.5px; color:var(--ink-soft); text-align:right; flex:0 0 auto; }
+  .upload-meta .fname{ font-weight:600; color:var(--ink); }
+  .btn{
+    border:none; cursor:pointer;
+    background:var(--navy); color:#fff;
+    padding:10px 18px; border-radius:8px;
+    font-family:inherit; font-size:13.5px; font-weight:600;
+    white-space:nowrap;
+  }
+  .btn:hover{ background:var(--navy-soft); }
+  input[type=file]{ display:none; }
+
+  /* ===== Page content ===== */
+  .content{ max-width:1180px; margin:0 auto; padding:28px 36px 80px; }
+  .empty-state{
+    text-align:center; padding:80px 20px; color:var(--ink-soft);
+  }
+  .empty-state h2{ color:var(--ink); font-weight:600; font-size:18px; margin-bottom:6px;}
+  .empty-state p{ font-size:14px; max-width:420px; margin:0 auto; line-height:1.6;}
+
+  #dashboard{ display:none; }
+
+  /* ===== Stat cards ===== */
+  .stats-row{
+    display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px;
+  }
+  .stat-card{
+    background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:18px 20px; box-shadow:var(--shadow);
+  }
+  .stat-label{ font-size:12px; color:var(--ink-soft); letter-spacing:.04em; }
+  .stat-value{ font-size:28px; font-weight:600; margin-top:6px; letter-spacing:-0.01em; }
+  .stat-value.green{ color:var(--green); }
+  .stat-value.amber{ color:var(--amber); }
+  .stat-sub{ font-size:12px; color:var(--ink-soft); margin-top:4px; }
+
+  /* ===== Section ===== */
+  .section{
+    background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:22px 24px; margin-bottom:20px; box-shadow:var(--shadow);
+  }
+  .section-head{
+    display:flex; align-items:baseline; justify-content:space-between; margin-bottom:16px;
+    flex-wrap:wrap; gap:8px;
+  }
+  .section-head h3{ margin:0; font-size:15.5px; font-weight:600; }
+  .section-head .hint{ font-size:12.5px; color:var(--ink-soft); }
+
+  /* progress */
+  .progress-row{ display:flex; align-items:center; gap:24px; }
+  .progress-ring-wrap{ flex:0 0 auto; position:relative; width:120px; height:120px;}
+  .progress-ring-wrap svg{ transform:rotate(-90deg); }
+  .progress-ring-bg{ fill:none; stroke:var(--paper); stroke-width:10; }
+  .progress-ring-fg{ fill:none; stroke:var(--green); stroke-width:10; stroke-linecap:round; transition:stroke-dashoffset .6s ease; }
+  .progress-ring-label{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    flex-direction:column;
+  }
+  .progress-ring-label .num{ font-size:24px; font-weight:700; }
+  .progress-ring-label .pct{ font-size:11px; color:var(--ink-soft); }
+  .progress-bars{ flex:1; }
+  .pbar-row{ display:flex; align-items:center; gap:10px; margin-bottom:10px; font-size:13px; }
+  .pbar-row .pname{ flex:0 0 200px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .pbar-track{ flex:1; height:8px; background:var(--paper); border-radius:6px; overflow:hidden; }
+  .pbar-fill{ height:100%; border-radius:6px; }
+  .pbar-count{ flex:0 0 28px; text-align:right; color:var(--ink-soft); }
+
+  /* team grid */
+  .team-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; }
+  .person-card{
+    border:1px solid var(--line); border-radius:10px; padding:13px 14px;
+    display:flex; align-items:center; gap:12px;
+  }
+  .avatar{
+    width:38px; height:38px; border-radius:50%; flex:0 0 auto;
+    display:flex; align-items:center; justify-content:center;
+    font-weight:600; font-size:14px; color:#fff;
+  }
+  .avatar.green{ background:var(--green); }
+  .avatar.amber{ background:var(--amber); }
+  .person-info{ min-width:0; }
+  .person-name{ font-size:13.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .person-status{ font-size:12px; margin-top:2px; display:inline-flex; align-items:center; gap:5px; }
+  .dot{ width:6px; height:6px; border-radius:50%; }
+  .dot.green{ background:var(--green); }
+  .dot.amber{ background:var(--amber); }
+  .person-meta{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
+
+  /* chart */
+  #trendChart{ width:100%; height:220px; display:block; }
+
+  /* table */
+  .table-controls{ display:flex; gap:10px; margin-bottom:14px; }
+  .search-input{
+    flex:1; padding:9px 12px; border:1px solid var(--line); border-radius:8px;
+    font-family:inherit; font-size:13.5px; background:var(--paper);
+  }
+  .search-input:focus{ outline:2px solid var(--green); outline-offset:-1px; }
+  table.log-table{ width:100%; border-collapse:collapse; font-size:13px; }
+  table.log-table thead th{
+    text-align:left; padding:10px 12px; color:var(--ink-soft); font-weight:600;
+    font-size:11.5px; letter-spacing:.04em; text-transform:uppercase;
+    border-bottom:1.5px solid var(--line); white-space:nowrap;
+  }
+  table.log-table tbody td{
+    padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:top;
+  }
+  table.log-table tbody tr:hover{ background:var(--paper); }
+  .badge{
+    display:inline-block; padding:2px 9px; border-radius:20px; font-size:11.5px; font-weight:600;
+  }
+  .badge.green{ background:var(--green-soft); color:var(--green); }
+  .badge.amber{ background:var(--amber-soft); color:var(--amber); }
+  .table-empty{ text-align:center; padding:40px 0; color:var(--ink-soft); font-size:13.5px; }
+  .table-footer{ display:flex; justify-content:space-between; align-items:center; margin-top:12px; font-size:12.5px; color:var(--ink-soft); }
+  .table-footer button{
+    background:none; border:1px solid var(--line); border-radius:6px; padding:6px 12px;
+    font-family:inherit; font-size:12.5px; cursor:pointer; color:var(--ink);
+  }
+  .table-footer button:disabled{ opacity:.4; cursor:default; }
+
+  @media (max-width:760px){
+    .stats-row{ grid-template-columns:repeat(2,1fr); }
+    .progress-row{ flex-direction:column; align-items:flex-start; }
+    .pbar-row .pname{ flex:0 0 130px; }
+    .topbar{ padding:24px 18px 56px; }
+    .upload-wrap, .content{ padding-left:18px; padding-right:18px; }
+    .upload-card{ flex-wrap:wrap; }
+    .upload-meta{ text-align:left; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ transition:none !important; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="topbar-inner">
+      <p class="eyebrow">Internal Ops · Email Tracking</p>
+      <h1>Capacity Check — Response Tracker</h1>
+      <p class="sub">ติดตามสถานะการตอบกลับอีเมล "Capacity" จากทีม — อัปเดตอัตโนมัติจากไฟล์ Tracker ที่ดึงข้อมูลผ่าน Outlook Rule</p>
+    </div>
+  </div>
+
+  <div class="upload-wrap">
+    <div class="upload-card" id="dropZone">
+      <div class="upload-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1B2538" stroke-width="1.8">
+          <path d="M12 16V4M12 4l-4 4M12 4l4 4" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="upload-text">
+        <strong>ลากไฟล์ .xlsm / .xlsx มาวาง หรือกดเพื่อเลือกไฟล์</strong>
+        <span>อ่านข้อมูลจากชีต "Capacity Tracker" และ "Log" โดยอัตโนมัติ — ข้อมูลทั้งหมดประมวลผลในเบราว์เซอร์ ไม่ส่งออกไปไหน</span>
+      </div>
+      <div class="upload-meta" id="uploadMeta"></div>
+      <button class="btn" id="pickBtn" type="button">เลือกไฟล์</button>
+      <input type="file" id="fileInput" accept=".xlsm,.xlsx,.xls">
+    </div>
+  </div>
+
+  <div class="content">
+
+    <div class="empty-state" id="emptyState">
+      <h2>ยังไม่มีข้อมูล</h2>
+      <p>อัปโหลดไฟล์ Capacity_Check_Tracker (.xlsm หรือ .xlsx) ด้านบนเพื่อแสดงสรุปสถานะ กราฟแนวโน้ม และตาราง Log การตอบกลับ</p>
+    </div>
+
+    <div id="dashboard">
+
+      <!-- Stat cards -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-label">ตอบแล้ว (รอบนี้)</div>
+          <div class="stat-value green" id="statAnswered">0 / 8</div>
+          <div class="stat-sub" id="statAnsweredSub">ทีม Capacity Check</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">% ความคืบหน้า</div>
+          <div class="stat-value" id="statProgress">0%</div>
+          <div class="stat-sub">ของรอบล่าสุด</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">ยังไม่ตอบ</div>
+          <div class="stat-value amber" id="statPending">0</div>
+          <div class="stat-sub">คน ที่ต้อง follow up</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">อีเมลทั้งหมด (สะสม)</div>
+          <div class="stat-value" id="statTotalMail">0</div>
+          <div class="stat-sub">ทุกรอบที่บันทึกไว้</div>
+        </div>
+      </div>
+
+      <!-- Progress + team -->
+      <div class="section">
+        <div class="section-head">
+          <h3>ความคืบหน้ารายบุคคล</h3>
+          <span class="hint" id="subjectHint"></span>
+        </div>
+        <div class="progress-row">
+          <div class="progress-ring-wrap">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <circle class="progress-ring-bg" cx="60" cy="60" r="50"></circle>
+              <circle class="progress-ring-fg" id="ringFg" cx="60" cy="60" r="50" stroke-dasharray="314" stroke-dashoffset="314"></circle>
+            </svg>
+            <div class="progress-ring-label">
+              <div class="num" id="ringNum">0%</div>
+              <div class="pct">ตอบแล้ว</div>
+            </div>
+          </div>
+          <div class="progress-bars" id="progressBars"></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head">
+          <h3>สถานะทีม (8 คน)</h3>
+          <span class="hint">วันที่ตอบล่าสุด และจำนวนครั้งที่ตอบสะสม</span>
+        </div>
+        <div class="team-grid" id="teamGrid"></div>
+      </div>
+
+      <!-- Trend chart -->
+      <div class="section">
+        <div class="section-head">
+          <h3>แนวโน้มการตอบกลับ</h3>
+          <span class="hint">จำนวนอีเมลที่ตอบกลับ แยกตามวัน</span>
+        </div>
+        <svg id="trendChart" viewBox="0 0 1000 220" preserveAspectRatio="none"></svg>
+      </div>
+
+      <!-- Log table -->
+      <div class="section">
+        <div class="section-head">
+          <h3>ประวัติการตอบกลับ (Log)</h3>
+          <span class="hint" id="logCountHint"></span>
+        </div>
+        <div class="table-controls">
+          <input class="search-input" id="searchInput" type="text" placeholder="ค้นหาชื่อ, ผู้ส่ง, subject...">
+        </div>
+        <div id="tableWrap"></div>
+        <div class="table-footer" id="tableFooter" style="display:none;">
+          <span id="pageInfo"></span>
+          <div style="display:flex; gap:8px;">
+            <button id="prevPage">← ก่อนหน้า</button>
+            <button id="nextPage">ถัดไป →</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+<script>
+(function(){
+  const fileInput = document.getElementById('fileInput');
+  const pickBtn = document.getElementById('pickBtn');
+  const dropZone = document.getElementById('dropZone');
+  const uploadMeta = document.getElementById('uploadMeta');
+  const emptyState = document.getElementById('emptyState');
+  const dashboard = document.getElementById('dashboard');
+
+  let logRows = [];      // {date, matchedName, sender, subject, keyword}
+  let filteredRows = [];
+  let currentPage = 1;
+  const PAGE_SIZE = 15;
+
+  pickBtn.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', e => {
+    if(e.target.files && e.target.files[0]) handleFile(e.target.files[0]);
+  });
+
+  ['dragenter','dragover'].forEach(evt=>{
+    dropZone.addEventListener(evt, e=>{ e.preventDefault(); dropZone.classList.add('dragover'); });
+  });
+  ['dragleave','drop'].forEach(evt=>{
+    dropZone.addEventListener(evt, e=>{ e.preventDefault(); dropZone.classList.remove('dragover'); });
+  });
+  dropZone.addEventListener('drop', e=>{
+    const f = e.dataTransfer.files && e.dataTransfer.files[0];
+    if(f) handleFile(f);
+  });
+
+  function handleFile(file){
+    uploadMeta.innerHTML = `กำลังอ่านไฟล์...`;
+    const reader = new FileReader();
+    reader.onload = function(ev){
+      try{
+        const data = new Uint8Array(ev.target.result);
+        const wb = XLSX.read(data, {type:'array', cellDates:true});
+        processWorkbook(wb);
+        const now = new Date();
+        uploadMeta.innerHTML = `<div class="fname">${escapeHtml(file.name)}</div>อัปเดตล่าสุด ${now.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})}`;
+      }catch(err){
+        console.error(err);
+        uploadMeta.innerHTML = `<div class="fname" style="color:#C8553D">อ่านไฟล์ไม่สำเร็จ</div>ตรวจสอบว่าเป็นไฟล์ Tracker ที่ถูกต้อง`;
+      }
+    };
+    reader.onerror = function(){
+      uploadMeta.innerHTML = `<div class="fname" style="color:#C8553D">โหลดไฟล์ไม่สำเร็จ</div>`;
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function findSheet(wb, candidates){
+    for(const name of wb.SheetNames){
+      const norm = name.trim().toLowerCase();
+      if(candidates.some(c => norm.includes(c))) return wb.Sheets[name];
+    }
+    return null;
+  }
+
+  function processWorkbook(wb){
+    const trackerSheet = findSheet(wb, ['capacity tracker','tracker']) || wb.Sheets[wb.SheetNames[0]];
+    const logSheet = findSheet(wb, ['log']) || wb.Sheets[wb.SheetNames[1]] || null;
+
+    const trackerData = XLSX.utils.sheet_to_json(trackerSheet, {header:1, raw:true, defval:null});
+    const parsedTracker = parseTracker(trackerData);
+
+    logRows = [];
+    if(logSheet){
+      const logData = XLSX.utils.sheet_to_json(logSheet, {header:1, raw:true, defval:null});
+      logRows = parseLog(logData);
+    }
+
+    renderDashboard(parsedTracker);
+    filteredRows = logRows.slice().sort((a,b)=> (b._sortDate||0) - (a._sortDate||0));
+    currentPage = 1;
+    renderTable();
+    renderChart(logRows);
+
+    emptyState.style.display = 'none';
+    dashboard.style.display = 'block';
+  }
+
+  function cellStr(v){
+    if(v === null || v === undefined) return '';
+    if(v instanceof Date) return v.toLocaleString('th-TH');
+    return String(v).trim();
+  }
+
+  function parseTracker(rows){
+    // rows is array of arrays, 0-indexed. Excel row N => rows[N-1]
+    let subject = '', answeredLabel = '', progressRaw = 0, totalMail = 0;
+    let people = [];
+
+    for(let i=0;i<rows.length;i++){
+      const row = rows[i] || [];
+      const a = cellStr(row[0]);
+      if(a.includes('หัวข้อ') || a.toLowerCase().includes('subject')){
+        subject = cellStr(row[1]);
+        // D/E might hold "answered" summary on same row
+        if(cellStr(row[3]).includes('ตอบแล้ว')) answeredLabel = cellStr(row[4]);
+      }
+      if(a.includes('% ความคืบหน้า') || cellStr(row[3]).includes('% ความคืบหน้า')){
+        progressRaw = parseFloat(row[4]) || 0;
+      }
+      if(cellStr(row[3]).includes('รวมจำนวนเมลทั้งหมด')){
+        totalMail = parseFloat(row[4]) || 0;
+      }
+    }
+
+    // find header row "ชื่อ" then read following rows until blank
+    let headerIdx = -1;
+    for(let i=0;i<rows.length;i++){
+      if(cellStr((rows[i]||[])[0]) === 'ชื่อ'){ headerIdx = i; break; }
+    }
+    if(headerIdx >= 0){
+      for(let i=headerIdx+1;i<rows.length;i++){
+        const row = rows[i] || [];
+        const name = cellStr(row[0]);
+        if(!name) break;
+        people.push({
+          name: name,
+          status: cellStr(row[1]) || 'ยังไม่ตอบ',
+          lastReply: cellStr(row[2]),
+          count: parseFloat(row[3]) || 0,
+          note: cellStr(row[4])
+        });
+      }
+    }
+
+    return { subject, answeredLabel, progressRaw, totalMail, people };
+  }
+
+  function parseLog(rows){
+    // header expected at row 0: วันที่/เวลา, ชื่อ matched, ผู้ส่งจริง, Subject, Keyword
+    const out = [];
+    for(let i=1;i<rows.length;i++){
+      const row = rows[i] || [];
+      const dateVal = row[0];
+      const matched = cellStr(row[1]);
+      const sender = cellStr(row[2]);
+      const subj = cellStr(row[3]);
+      const keyword = cellStr(row[4]);
+      if(!matched && !sender && !subj && !dateVal) continue;
+      let dt = null, dtLabel = '';
+      if(dateVal instanceof Date){
+        dt = dateVal.getTime();
+        dtLabel = dateVal.toLocaleString('th-TH',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+      } else if(dateVal){
+        dtLabel = cellStr(dateVal);
+        const parsed = Date.parse(dtLabel);
+        if(!isNaN(parsed)) dt = parsed;
+      }
+      out.push({ dateLabel: dtLabel, _sortDate: dt, matchedName: matched, sender, subject: subj, keyword });
+    }
+    return out;
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function shortName(full){
+    // "Chatchai Bangchit <chatchai_b@uih.co.th>" -> "Chatchai Bangchit"
+    const idx = full.indexOf('<');
+    return (idx > -1 ? full.slice(0, idx) : full).trim();
+  }
+
+  function initials(name){
+    const parts = name.split(/\s+/).filter(Boolean);
+    if(parts.length === 0) return '?';
+    if(parts.length === 1) return parts[0].slice(0,2).toUpperCase();
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+
+  function renderDashboard(t){
+    const total = t.people.length || 8;
+    const answeredCount = t.people.filter(p => p.status.includes('ตอบแล้ว')).length;
+    const pendingCount = total - answeredCount;
+    const pct = total ? Math.round((answeredCount/total)*100) : 0;
+
+    document.getElementById('statAnswered').textContent = `${answeredCount} / ${total}`;
+    document.getElementById('statAnsweredSub').textContent = t.subject ? `เรื่อง "${t.subject}"` : 'ทีม Capacity Check';
+    document.getElementById('statProgress').textContent = `${pct}%`;
+    document.getElementById('statPending').textContent = pendingCount;
+    document.getElementById('statTotalMail').textContent = t.totalMail || logRows.length || 0;
+    document.getElementById('subjectHint').textContent = t.subject ? `Subject: ${t.subject}` : '';
+
+    // ring
+    const circumference = 2 * Math.PI * 50;
+    const ringFg = document.getElementById('ringFg');
+    ringFg.setAttribute('stroke-dasharray', circumference.toFixed(1));
+    ringFg.setAttribute('stroke-dashoffset', (circumference * (1 - pct/100)).toFixed(1));
+    document.getElementById('ringNum').textContent = `${pct}%`;
+
+    // progress bars (by reply count, sorted desc)
+    const sorted = t.people.slice().sort((a,b)=> b.count - a.count);
+    const maxCount = Math.max(1, ...sorted.map(p=>p.count));
+    const barsEl = document.getElementById('progressBars');
+    barsEl.innerHTML = sorted.map(p=>{
+      const isAnswered = p.status.includes('ตอบแล้ว');
+      const color = isAnswered ? 'var(--green)' : 'var(--amber)';
+      const widthPct = Math.max(4, (p.count / maxCount) * 100);
+      return `<div class="pbar-row">
+        <span class="pname">${escapeHtml(shortName(p.name))}</span>
+        <span class="pbar-track"><span class="pbar-fill" style="width:${widthPct}%; background:${color};"></span></span>
+        <span class="pbar-count mono">${p.count}</span>
+      </div>`;
+    }).join('');
+
+    // team grid
+    const teamEl = document.getElementById('teamGrid');
+    teamEl.innerHTML = t.people.map(p=>{
+      const isAnswered = p.status.includes('ตอบแล้ว');
+      const colorClass = isAnswered ? 'green' : 'amber';
+      const name = shortName(p.name);
+      return `<div class="person-card">
+        <div class="avatar ${colorClass}">${escapeHtml(initials(name))}</div>
+        <div class="person-info">
+          <div class="person-name" title="${escapeHtml(name)}">${escapeHtml(name)}</div>
+          <div class="person-status"><span class="dot ${colorClass}"></span>${escapeHtml(p.status)}</div>
+          <div class="person-meta">${p.lastReply ? 'ตอบล่าสุด: '+escapeHtml(p.lastReply) : 'ยังไม่มีการตอบกลับ'} · สะสม ${p.count} ครั้ง</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function renderChart(rows){
+    const svg = document.getElementById('trendChart');
+    const withDate = rows.filter(r => r._sortDate);
+    if(withDate.length === 0){
+      svg.innerHTML = `<text x="500" y="110" text-anchor="middle" fill="#9aa0ab" font-size="13" font-family="IBM Plex Sans Thai">ยังไม่มีข้อมูลในชีต Log สำหรับแสดงแนวโน้ม</text>`;
+      return;
+    }
+    // group by date (yyyy-mm-dd)
+    const counts = {};
+    withDate.forEach(r=>{
+      const d = new Date(r._sortDate);
+      const key = d.toISOString().slice(0,10);
+      counts[key] = (counts[key]||0) + 1;
+    });
+    const keys = Object.keys(counts).sort();
+    const vals = keys.map(k=>counts[k]);
+    const maxV = Math.max(...vals, 1);
+
+    const W = 1000, H = 220, padL = 36, padR = 16, padT = 16, padB = 32;
+    const innerW = W - padL - padR, innerH = H - padT - padB;
+    const stepX = keys.length > 1 ? innerW/(keys.length-1) : 0;
+
+    const points = keys.map((k,i)=>{
+      const x = padL + (keys.length>1 ? i*stepX : innerW/2);
+      const y = padT + innerH - (counts[k]/maxV)*innerH;
+      return [x,y];
+    });
+
+    const linePath = points.map((p,i)=> (i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+    const areaPath = linePath + ` L${points[points.length-1][0].toFixed(1)},${padT+innerH} L${points[0][0].toFixed(1)},${padT+innerH} Z`;
+
+    // grid lines (4 horizontal)
+    let gridLines = '';
+    for(let i=0;i<=3;i++){
+      const y = padT + innerH - (innerH*i/3);
+      gridLines += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="#E4E0D8" stroke-width="1"/>`;
+    }
+
+    // x labels: show at most 7 evenly spaced
+    const labelEvery = Math.max(1, Math.ceil(keys.length/7));
+    let xLabels = '';
+    keys.forEach((k,i)=>{
+      if(i % labelEvery !== 0 && i !== keys.length-1) return;
+      const x = points[i][0];
+      const lbl = k.slice(5); // mm-dd
+      xLabels += `<text x="${x.toFixed(1)}" y="${H-8}" text-anchor="middle" font-size="11" fill="#5C6478" font-family="IBM Plex Mono">${lbl}</text>`;
+    });
+
+    const dots = points.map((p,i)=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.5" fill="#1F9E76"><title>${keys[i]}: ${vals[i]}</title></circle>`).join('');
+
+    svg.innerHTML = `
+      ${gridLines}
+      <path d="${areaPath}" fill="rgba(31,158,118,0.12)" stroke="none"/>
+      <path d="${linePath}" fill="none" stroke="#1F9E76" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+      ${dots}
+      ${xLabels}
+    `;
+  }
+
+  function renderTable(){
+    const wrap = document.getElementById('tableWrap');
+    const footer = document.getElementById('tableFooter');
+    document.getElementById('logCountHint').textContent = `${filteredRows.length.toLocaleString('th-TH')} รายการ`;
+
+    if(filteredRows.length === 0){
+      wrap.innerHTML = `<div class="table-empty">ไม่พบข้อมูล Log${logRows.length ? ' ที่ตรงกับคำค้นหา' : ''}</div>`;
+      footer.style.display = 'none';
+      return;
+    }
+
+    const totalPages = Math.ceil(filteredRows.length / PAGE_SIZE);
+    currentPage = Math.min(currentPage, totalPages);
+    const start = (currentPage-1)*PAGE_SIZE;
+    const pageRows = filteredRows.slice(start, start+PAGE_SIZE);
+
+    wrap.innerHTML = `
+      <table class="log-table">
+        <thead>
+          <tr>
+            <th>วันที่/เวลา</th>
+            <th>ชื่อที่ matched</th>
+            <th>ผู้ส่งจริง</th>
+            <th>Subject</th>
+            <th>Keyword (รอบ)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${pageRows.map(r=>`
+            <tr>
+              <td class="mono">${escapeHtml(r.dateLabel || '—')}</td>
+              <td>${escapeHtml(shortName(r.matchedName) || '—')}</td>
+              <td>${escapeHtml(r.sender || '—')}</td>
+              <td>${escapeHtml(r.subject || '—')}</td>
+              <td>${r.keyword ? `<span class="badge green">${escapeHtml(r.keyword)}</span>` : '—'}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+
+    footer.style.display = 'flex';
+    document.getElementById('pageInfo').textContent = `หน้า ${currentPage} / ${totalPages} (แสดง ${start+1}-${Math.min(start+PAGE_SIZE, filteredRows.length)} จาก ${filteredRows.length})`;
+    document.getElementById('prevPage').disabled = currentPage <= 1;
+    document.getElementById('nextPage').disabled = currentPage >= totalPages;
+  }
+
+  document.getElementById('prevPage').addEventListener('click', ()=>{ currentPage--; renderTable(); });
+  document.getElementById('nextPage').addEventListener('click', ()=>{ currentPage++; renderTable(); });
+
+  document.getElementById('searchInput').addEventListener('input', e=>{
+    const q = e.target.value.trim().toLowerCase();
+    filteredRows = logRows.filter(r=>{
+      if(!q) return true;
+      return (r.matchedName+r.sender+r.subject+r.keyword+r.dateLabel).toLowerCase().includes(q);
+    }).sort((a,b)=> (b._sortDate||0) - (a._sortDate||0));
+    currentPage = 1;
+    renderTable();
+  });
+
+})();
+</script>
+</body>
+</html>
