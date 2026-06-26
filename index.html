@@ -199,6 +199,44 @@
   .badge.green{ background:var(--green-soft); color:var(--green); }
   .badge.amber{ background:var(--amber-soft); color:var(--amber); }
   .table-empty{ text-align:center; padding:40px 0; color:var(--ink-soft); font-size:13.5px; }
+
+  /* monthly summary */
+  .monthly-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(168px,1fr)); gap:14px; }
+  .month-card{
+    position:relative;
+    border:1px solid var(--line); border-radius:14px;
+    padding:18px 18px 16px;
+    background:linear-gradient(165deg, var(--card) 0%, var(--paper) 130%);
+    overflow:hidden;
+  }
+  .month-card::before{
+    content:""; position:absolute; left:0; top:0; bottom:0; width:3px;
+    background:var(--green);
+  }
+  .month-card.is-latest::before{ background:var(--navy); }
+  .month-label{
+    font-size:11.5px; color:var(--ink-soft); letter-spacing:.06em; text-transform:uppercase;
+    font-weight:600; display:flex; align-items:center; gap:6px;
+  }
+  .month-label .latest-tag{
+    font-size:10px; font-weight:700; color:var(--navy); background:#E7EAF2;
+    padding:1.5px 7px; border-radius:20px; letter-spacing:.02em; text-transform:none;
+  }
+  .month-count{ margin-top:10px; display:flex; align-items:baseline; gap:5px; }
+  .month-count .num{ font-size:30px; font-weight:700; letter-spacing:-0.02em; color:var(--ink); font-family:'IBM Plex Mono','IBM Plex Sans Thai',monospace; }
+  .month-count .unit{ font-size:12.5px; color:var(--ink-soft); font-weight:500; }
+  .month-people{
+    margin-top:10px; font-size:12.5px; color:var(--ink-soft);
+    display:flex; align-items:center; gap:6px;
+  }
+  .month-people .people-dot{ width:6px; height:6px; border-radius:50%; background:var(--amber); flex:0 0 auto; }
+  .month-delta{
+    margin-top:12px; display:inline-flex; align-items:center; gap:4px;
+    font-size:11px; font-weight:600; padding:3px 9px; border-radius:20px;
+  }
+  .month-delta.up{ background:var(--green-soft); color:var(--green); }
+  .month-delta.down{ background:var(--amber-soft); color:var(--amber); }
+  .month-delta.flat{ background:var(--paper); color:var(--ink-soft); }
   .table-footer{ display:flex; justify-content:space-between; align-items:center; margin-top:12px; font-size:12.5px; color:var(--ink-soft); }
   .table-footer button{
     background:none; border:1px solid var(--line); border-radius:6px; padding:6px 12px;
@@ -320,6 +358,15 @@
         <svg id="trendChart" viewBox="0 0 1000 220" preserveAspectRatio="none"></svg>
       </div>
 
+      <!-- Monthly summary -->
+      <div class="section">
+        <div class="section-head">
+          <h3>สรุปรายเดือน</h3>
+          <span class="hint">จำนวนอีเมลและคนที่ตอบกลับ แยกตามเดือน</span>
+        </div>
+        <div class="monthly-grid" id="monthlyWrap"></div>
+      </div>
+
       <!-- Log table -->
       <div class="section">
         <div class="section-head">
@@ -419,6 +466,7 @@
     currentPage = 1;
     renderTable();
     renderChart(logRows);
+    renderMonthly(logRows);
 
     emptyState.style.display = 'none';
     dashboard.style.display = 'block';
@@ -625,6 +673,47 @@
       ${dots}
       ${xLabels}
     `;
+  }
+
+  function renderMonthly(rows){
+    const wrap = document.getElementById('monthlyWrap');
+    const withDate = rows.filter(r => r._sortDate);
+    if(withDate.length === 0){
+      wrap.innerHTML = `<div class="table-empty">ยังไม่มีข้อมูลในชีต Log สำหรับสรุปรายเดือน</div>`;
+      return;
+    }
+
+    const monthNamesTh = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+    const groups = {};
+
+    withDate.forEach(r=>{
+      const d = new Date(r._sortDate);
+      const key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+      if(!groups[key]) groups[key] = { count:0, people:new Set(), year:d.getFullYear(), month:d.getMonth() };
+      groups[key].count++;
+      groups[key].people.add(shortName(r.matchedName || r.sender || ''));
+    });
+
+    const keys = Object.keys(groups).sort().reverse(); // newest month first
+
+    wrap.innerHTML = keys.map((k,i)=>{
+      const g = groups[k];
+      const isLatest = i === 0;
+      const prev = groups[keys[i+1]]; // chronologically previous month
+      let deltaHtml = '';
+      if(prev){
+        const diff = g.count - prev.count;
+        if(diff > 0) deltaHtml = `<span class="month-delta up">▲ +${diff} จากเดือนก่อน</span>`;
+        else if(diff < 0) deltaHtml = `<span class="month-delta down">▼ ${diff} จากเดือนก่อน</span>`;
+        else deltaHtml = `<span class="month-delta flat">— เท่าเดือนก่อน</span>`;
+      }
+      return `<div class="month-card ${isLatest ? 'is-latest' : ''}">
+        <div class="month-label">${monthNamesTh[g.month]} ${g.year}${isLatest ? '<span class="latest-tag">ล่าสุด</span>' : ''}</div>
+        <div class="month-count"><span class="num">${g.count.toLocaleString('th-TH')}</span><span class="unit">อีเมล</span></div>
+        <div class="month-people"><span class="people-dot"></span>${g.people.size} คนตอบ</div>
+        ${deltaHtml}
+      </div>`;
+    }).join('');
   }
 
   function renderTable(){
