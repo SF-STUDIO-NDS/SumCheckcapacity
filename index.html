@@ -21,6 +21,7 @@
     --amber:#E08A2E;
     --amber-soft:#FBEDDC;
     --red:#C8553D;
+    --red-soft:#F8E5E1;
     --shadow: 0 1px 2px rgba(27,37,56,0.04), 0 8px 24px rgba(27,37,56,0.06);
   }
   *{box-sizing:border-box;}
@@ -93,9 +94,24 @@
     padding:10px 18px; border-radius:8px;
     font-family:inherit; font-size:13.5px; font-weight:600;
     white-space:nowrap;
+    display:inline-flex; align-items:center; gap:8px;
   }
   .btn:hover{ background:var(--navy-soft); }
+  .btn:disabled{ opacity:.7; cursor:default; }
+  .btn.ghost{
+    background:none; border:1px solid var(--line); color:var(--ink);
+    padding:7px 13px; font-size:12.5px;
+  }
+  .btn.ghost:hover{ background:var(--paper); }
   input[type=file]{ display:none; }
+
+  .spinner{
+    width:14px; height:14px; border-radius:50%;
+    border:2px solid rgba(255,255,255,0.35); border-top-color:#fff;
+    animation:spin .7s linear infinite;
+    flex:0 0 auto;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
 
   /* ===== Page content ===== */
   .content{ max-width:1180px; margin:0 auto; padding:28px 36px 80px; }
@@ -114,12 +130,29 @@
   .stat-card{
     background:var(--card); border:1px solid var(--line); border-radius:12px;
     padding:18px 20px; box-shadow:var(--shadow);
+    position:relative;
   }
+  .stat-card.clickable{ cursor:pointer; transition:border-color .15s, transform .1s; }
+  .stat-card.clickable:hover{ border-color:var(--amber); }
+  .stat-card.clickable:active{ transform:scale(0.99); }
+  .stat-card.clickable::after{
+    content:"กรองทีม →";
+    position:absolute; top:16px; right:18px;
+    font-size:10.5px; color:var(--amber); opacity:0; transition:opacity .15s;
+  }
+  .stat-card.clickable:hover::after{ opacity:1; }
   .stat-label{ font-size:12px; color:var(--ink-soft); letter-spacing:.04em; }
   .stat-value{ font-size:28px; font-weight:600; margin-top:6px; letter-spacing:-0.01em; }
   .stat-value.green{ color:var(--green); }
   .stat-value.amber{ color:var(--amber); }
-  .stat-sub{ font-size:12px; color:var(--ink-soft); margin-top:4px; }
+  .stat-sub{ font-size:12px; color:var(--ink-soft); margin-top:4px; display:flex; align-items:center; gap:6px; }
+  .trend-pill{
+    display:inline-flex; align-items:center; gap:3px;
+    font-size:11px; font-weight:600; padding:1px 6px; border-radius:20px;
+  }
+  .trend-pill.up{ background:var(--green-soft); color:var(--green); }
+  .trend-pill.down{ background:var(--red-soft); color:var(--red); }
+  .trend-pill.flat{ background:var(--paper); color:var(--ink-soft); }
 
   /* ===== Section ===== */
   .section{
@@ -132,13 +165,25 @@
   }
   .section-head h3{ margin:0; font-size:15.5px; font-weight:600; }
   .section-head .hint{ font-size:12.5px; color:var(--ink-soft); }
+  .section-head-controls{ display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+
+  /* view toggle */
+  .seg{
+    display:inline-flex; background:var(--paper); border-radius:8px; padding:3px; gap:2px;
+  }
+  .seg button{
+    border:none; background:none; cursor:pointer;
+    padding:5px 12px; border-radius:6px; font-family:inherit; font-size:12px; font-weight:600;
+    color:var(--ink-soft);
+  }
+  .seg button.active{ background:var(--card); color:var(--ink); box-shadow:0 1px 2px rgba(27,37,56,.08); }
 
   /* progress */
   .progress-row{ display:flex; align-items:center; gap:24px; }
   .progress-ring-wrap{ flex:0 0 auto; position:relative; width:120px; height:120px;}
   .progress-ring-wrap svg{ transform:rotate(-90deg); }
   .progress-ring-bg{ fill:none; stroke:var(--paper); stroke-width:10; }
-  .progress-ring-fg{ fill:none; stroke:var(--green); stroke-width:10; stroke-linecap:round; transition:stroke-dashoffset .6s ease; }
+  .progress-ring-fg{ fill:none; stroke:var(--green); stroke-width:10; stroke-linecap:round; transition:stroke-dashoffset 1s cubic-bezier(.4,0,.2,1); }
   .progress-ring-label{
     position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
     flex-direction:column;
@@ -149,7 +194,7 @@
   .pbar-row{ display:flex; align-items:center; gap:10px; margin-bottom:10px; font-size:13px; }
   .pbar-row .pname{ flex:0 0 200px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .pbar-track{ flex:1; height:8px; background:var(--paper); border-radius:6px; overflow:hidden; }
-  .pbar-fill{ height:100%; border-radius:6px; }
+  .pbar-fill{ height:100%; border-radius:6px; width:0; transition:width 1s cubic-bezier(.4,0,.2,1); }
   .pbar-count{ flex:0 0 28px; text-align:right; color:var(--ink-soft); }
 
   /* team grid */
@@ -157,7 +202,9 @@
   .person-card{
     border:1px solid var(--line); border-radius:10px; padding:13px 14px;
     display:flex; align-items:center; gap:12px;
+    transition:box-shadow .15s, border-color .3s;
   }
+  .person-card.flash{ border-color:var(--amber); box-shadow:0 0 0 3px var(--amber-soft); }
   .avatar{
     width:38px; height:38px; border-radius:50%; flex:0 0 auto;
     display:flex; align-items:center; justify-content:center;
@@ -165,19 +212,32 @@
   }
   .avatar.green{ background:var(--green); }
   .avatar.amber{ background:var(--amber); }
+  .avatar.red{ background:var(--red); }
   .person-info{ min-width:0; }
   .person-name{ font-size:13.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .person-status{ font-size:12px; margin-top:2px; display:inline-flex; align-items:center; gap:5px; }
   .dot{ width:6px; height:6px; border-radius:50%; }
   .dot.green{ background:var(--green); }
   .dot.amber{ background:var(--amber); }
+  .dot.red{ background:var(--red); }
   .person-meta{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
+  .person-card[hidden]{ display:none; }
 
   /* chart */
+  .chart-wrap{ position:relative; }
   #trendChart{ width:100%; height:220px; display:block; }
+  .chart-tooltip{
+    position:absolute; pointer-events:none; z-index:5;
+    background:var(--navy); color:#fff; padding:7px 11px; border-radius:8px;
+    font-size:12px; line-height:1.5; white-space:nowrap; opacity:0; transition:opacity .1s;
+    transform:translate(-50%,-100%);
+    box-shadow:var(--shadow);
+  }
+  .chart-tooltip .d{ color:#9CA8C2; font-size:10.5px; }
+  .chart-tooltip .v{ font-weight:600; font-family:'IBM Plex Mono',monospace; }
 
   /* table */
-  .table-controls{ display:flex; gap:10px; margin-bottom:14px; }
+  .table-controls{ display:flex; gap:10px; margin-bottom:14px; align-items:center; }
   .search-input{
     flex:1; padding:9px 12px; border:1px solid var(--line); border-radius:8px;
     font-family:inherit; font-size:13.5px; background:var(--paper);
@@ -188,7 +248,11 @@
     text-align:left; padding:10px 12px; color:var(--ink-soft); font-weight:600;
     font-size:11.5px; letter-spacing:.04em; text-transform:uppercase;
     border-bottom:1.5px solid var(--line); white-space:nowrap;
+    cursor:pointer; user-select:none;
   }
+  table.log-table thead th:hover{ color:var(--ink); }
+  table.log-table thead th .arrow{ display:inline-block; width:10px; opacity:.5; font-size:10px; }
+  table.log-table thead th.sorted .arrow{ opacity:1; color:var(--green); }
   table.log-table tbody td{
     padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:top;
   }
@@ -198,9 +262,10 @@
   }
   .badge.green{ background:var(--green-soft); color:var(--green); }
   .badge.amber{ background:var(--amber-soft); color:var(--amber); }
+  .badge.red{ background:var(--red-soft); color:var(--red); }
   .table-empty{ text-align:center; padding:40px 0; color:var(--ink-soft); font-size:13.5px; }
 
-  /* monthly / yearly summary */
+  /* monthly / yearly summary (accordion) */
   table.monthly-table{ width:100%; border-collapse:collapse; font-size:13.5px; }
   table.monthly-table thead th{
     text-align:left; padding:9px 12px; color:var(--ink-soft); font-weight:600;
@@ -211,23 +276,33 @@
   table.monthly-table tbody td{
     padding:9px 12px; border-bottom:1px solid var(--line);
   }
+  table.monthly-table tbody tr.month-row{ transition:background .1s; }
   table.monthly-table tbody tr.month-row:hover{ background:var(--paper); }
   table.monthly-table tbody tr:last-child td{ border-bottom:none; }
+  tr.year-row{ cursor:pointer; }
   tr.year-row td{
     background:var(--navy); color:#fff;
     font-weight:600; font-size:13px; padding:10px 12px;
     border-bottom:none;
   }
+  tr.year-row:hover td{ background:var(--navy-soft); }
   tr.year-row td.num{ font-family:'IBM Plex Mono','IBM Plex Sans Thai',monospace; }
-  tr.year-row:not(:first-child) td{ padding-top:16px; }
+  tr.year-row:not(:first-child) td{ margin-top:16px; }
+  tr.year-row .chev{ display:inline-block; margin-right:8px; transition:transform .18s; font-size:10px; }
+  tr.year-row.collapsed .chev{ transform:rotate(-90deg); }
   tr.month-row td.month-name{ padding-left:24px; color:var(--ink-soft); }
   tr.month-row td.num{ font-family:'IBM Plex Mono','IBM Plex Sans Thai',monospace; color:var(--ink); }
-  .table-footer{ display:flex; justify-content:space-between; align-items:center; margin-top:12px; font-size:12.5px; color:var(--ink-soft); }
+  tr.month-row[hidden]{ display:none; }
+  .table-footer{ display:flex; justify-content:space-between; align-items:center; margin-top:12px; font-size:12.5px; color:var(--ink-soft); gap:12px; flex-wrap:wrap; }
   .table-footer button{
     background:none; border:1px solid var(--line); border-radius:6px; padding:6px 12px;
     font-family:inherit; font-size:12.5px; cursor:pointer; color:var(--ink);
   }
   .table-footer button:disabled{ opacity:.4; cursor:default; }
+  .page-size-select{
+    border:1px solid var(--line); border-radius:6px; padding:5px 8px;
+    font-family:inherit; font-size:12.5px; background:var(--card); color:var(--ink);
+  }
 
   @media (max-width:760px){
     .stats-row{ grid-template-columns:repeat(2,1fr); }
@@ -237,10 +312,11 @@
     .upload-wrap, .content{ padding-left:18px; padding-right:18px; }
     .upload-card{ flex-wrap:wrap; }
     .upload-meta{ text-align:left; }
+    .stat-card.clickable::after{ display:none; }
   }
 
   @media (prefers-reduced-motion: reduce){
-    *{ transition:none !important; }
+    *{ transition:none !important; animation:none !important; }
   }
 </style>
 </head>
@@ -285,7 +361,7 @@
       <div class="section">
         <div class="section-head">
           <h3>สรุปรายเดือน</h3>
-          <span class="hint">จำนวนอีเมลและคนที่ตอบกลับ แยกตามเดือน พร้อมยอดรวมแต่ละปี</span>
+          <span class="hint">คลิกที่แถวปีเพื่อย่อ/ขยาย — แสดงเฉพาะปีล่าสุดเป็นค่าเริ่มต้น</span>
         </div>
         <div id="monthlyWrap"></div>
       </div>
@@ -294,7 +370,7 @@
       <div class="stats-row">
         <div class="stat-card">
           <div class="stat-label">ตอบแล้ว (รอบนี้)</div>
-          <div class="stat-value green" id="statAnswered">0 / 8</div>
+          <div class="stat-value green" id="statAnswered">0 / 0</div>
           <div class="stat-sub" id="statAnsweredSub">ทีม Capacity Check</div>
         </div>
         <div class="stat-card">
@@ -302,7 +378,7 @@
           <div class="stat-value" id="statProgress">0%</div>
           <div class="stat-sub">ของรอบล่าสุด</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card clickable" id="pendingCard" title="คลิกเพื่อกรองเฉพาะคนที่ยังไม่ตอบ">
           <div class="stat-label">ยังไม่ตอบ</div>
           <div class="stat-value amber" id="statPending">0</div>
           <div class="stat-sub">คน ที่ต้อง follow up</div>
@@ -310,7 +386,7 @@
         <div class="stat-card">
           <div class="stat-label">อีเมลทั้งหมด (สะสม)</div>
           <div class="stat-value" id="statTotalMail">0</div>
-          <div class="stat-sub">ทุกรอบที่บันทึกไว้</div>
+          <div class="stat-sub" id="statTotalMailSub">ทุกรอบที่บันทึกไว้</div>
         </div>
       </div>
 
@@ -337,8 +413,8 @@
 
       <div class="section">
         <div class="section-head">
-          <h3>สถานะทีม (8 คน)</h3>
-          <span class="hint">วันที่ตอบล่าสุด และจำนวนครั้งที่ตอบสะสม</span>
+          <h3 id="teamCountHeading">สถานะทีม</h3>
+          <span class="hint" id="teamFilterHint">เรียงตามความเร่งด่วน — คนที่ยังไม่เคยตอบเลยขึ้นก่อน</span>
         </div>
         <div class="team-grid" id="teamGrid"></div>
       </div>
@@ -347,9 +423,19 @@
       <div class="section">
         <div class="section-head">
           <h3>แนวโน้มการตอบกลับ</h3>
-          <span class="hint">จำนวนอีเมลที่ตอบกลับ แยกตามวัน</span>
+          <div class="section-head-controls">
+            <span class="hint">เลื่อนเมาส์บนกราฟเพื่อดูรายละเอียด</span>
+            <div class="seg" id="chartSeg">
+              <button data-gran="day" class="active">รายวัน</button>
+              <button data-gran="week">รายสัปดาห์</button>
+              <button data-gran="month">รายเดือน</button>
+            </div>
+          </div>
         </div>
-        <svg id="trendChart" viewBox="0 0 1000 220" preserveAspectRatio="none"></svg>
+        <div class="chart-wrap">
+          <svg id="trendChart" viewBox="0 0 1000 220" preserveAspectRatio="none"></svg>
+          <div class="chart-tooltip" id="chartTooltip"></div>
+        </div>
       </div>
 
       <!-- Log table -->
@@ -360,11 +446,20 @@
         </div>
         <div class="table-controls">
           <input class="search-input" id="searchInput" type="text" placeholder="ค้นหาชื่อ, ผู้ส่ง, subject...">
+          <button class="btn ghost" id="exportBtn" type="button">↓ Export CSV</button>
         </div>
         <div id="tableWrap"></div>
         <div class="table-footer" id="tableFooter" style="display:none;">
           <span id="pageInfo"></span>
-          <div style="display:flex; gap:8px;">
+          <div style="display:flex; gap:10px; align-items:center;">
+            <label style="display:flex; align-items:center; gap:6px;">
+              ต่อหน้า
+              <select class="page-size-select" id="pageSizeSelect">
+                <option value="15">15</option>
+                <option value="30">30</option>
+                <option value="50">50</option>
+              </select>
+            </label>
             <button id="prevPage">← ก่อนหน้า</button>
             <button id="nextPage">ถัดไป →</button>
           </div>
@@ -386,7 +481,12 @@
   let logRows = [];      // {date, matchedName, sender, subject, keyword}
   let filteredRows = [];
   let currentPage = 1;
-  const PAGE_SIZE = 15;
+  let PAGE_SIZE = 15;
+  let sortKey = '_sortDate';
+  let sortDir = -1; // -1 desc, 1 asc
+  let chartGran = 'day';
+  let teamPeopleCache = [];
+  let pendingFilterActive = false;
 
   pickBtn.addEventListener('click', () => fileInput.click());
   fileInput.addEventListener('change', e => {
@@ -404,7 +504,18 @@
     if(f) handleFile(f);
   });
 
+  function setLoading(isLoading){
+    if(isLoading){
+      pickBtn.disabled = true;
+      pickBtn.innerHTML = `<span class="spinner"></span> กำลังอ่าน...`;
+    } else {
+      pickBtn.disabled = false;
+      pickBtn.textContent = 'เลือกไฟล์';
+    }
+  }
+
   function handleFile(file){
+    setLoading(true);
     uploadMeta.innerHTML = `กำลังอ่านไฟล์...`;
     const reader = new FileReader();
     reader.onload = function(ev){
@@ -417,10 +528,13 @@
       }catch(err){
         console.error(err);
         uploadMeta.innerHTML = `<div class="fname" style="color:#C8553D">อ่านไฟล์ไม่สำเร็จ</div>ตรวจสอบว่าเป็นไฟล์ Tracker ที่ถูกต้อง`;
+      }finally{
+        setLoading(false);
       }
     };
     reader.onerror = function(){
       uploadMeta.innerHTML = `<div class="fname" style="color:#C8553D">โหลดไฟล์ไม่สำเร็จ</div>`;
+      setLoading(false);
     };
     reader.readAsArrayBuffer(file);
   }
@@ -446,11 +560,14 @@
       logRows = parseLog(logData);
     }
 
+    pendingFilterActive = false;
+    teamPeopleCache = parsedTracker.people;
     renderDashboard(parsedTracker);
-    filteredRows = logRows.slice().sort((a,b)=> (b._sortDate||0) - (a._sortDate||0));
-    currentPage = 1;
-    renderTable();
-    renderChart(logRows);
+    sortKey = '_sortDate'; sortDir = -1;
+    applySearchAndSort();
+    chartGran = 'day';
+    document.querySelectorAll('#chartSeg button').forEach(b=>b.classList.toggle('active', b.dataset.gran==='day'));
+    renderChart(logRows, chartGran);
     renderMonthly(logRows);
 
     emptyState.style.display = 'none';
@@ -464,7 +581,6 @@
   }
 
   function parseTracker(rows){
-    // rows is array of arrays, 0-indexed. Excel row N => rows[N-1]
     let subject = '', answeredLabel = '', progressRaw = 0, totalMail = 0;
     let people = [];
 
@@ -473,7 +589,6 @@
       const a = cellStr(row[0]);
       if(a.includes('หัวข้อ') || a.toLowerCase().includes('subject')){
         subject = cellStr(row[1]);
-        // D/E might hold "answered" summary on same row
         if(cellStr(row[3]).includes('ตอบแล้ว')) answeredLabel = cellStr(row[4]);
       }
       if(a.includes('% ความคืบหน้า') || cellStr(row[3]).includes('% ความคืบหน้า')){
@@ -484,7 +599,6 @@
       }
     }
 
-    // find header row "ชื่อ" then read following rows until blank
     let headerIdx = -1;
     for(let i=0;i<rows.length;i++){
       if(cellStr((rows[i]||[])[0]) === 'ชื่อ'){ headerIdx = i; break; }
@@ -508,7 +622,6 @@
   }
 
   function parseLog(rows){
-    // header expected at row 0: วันที่/เวลา, ชื่อ matched, ผู้ส่งจริง, Subject, Keyword
     const out = [];
     for(let i=1;i<rows.length;i++){
       const row = rows[i] || [];
@@ -537,7 +650,6 @@
   }
 
   function shortName(full){
-    // "Chatchai Bangchit <chatchai_b@uih.co.th>" -> "Chatchai Bangchit"
     const idx = full.indexOf('<');
     return (idx > -1 ? full.slice(0, idx) : full).trim();
   }
@@ -549,75 +661,162 @@
     return (parts[0][0] + parts[1][0]).toUpperCase();
   }
 
+  // urgency: green = answered, amber = pending but has replied before (count>0),
+  // red = pending and has never replied (count===0) — highest priority follow-up
+  function urgencyOf(p){
+    if(p.status.includes('ตอบแล้ว')) return 'green';
+    return p.count > 0 ? 'amber' : 'red';
+  }
+  function urgencyRank(u){ return u === 'red' ? 0 : u === 'amber' ? 1 : 2; }
+  function urgencyLabel(u){ return u === 'red' ? 'ยังไม่เคยตอบเลย' : u === 'amber' ? 'รอการตอบกลับ' : 'ตอบแล้ว'; }
+
   function renderDashboard(t){
-    const total = t.people.length || 8;
+    const total = t.people.length;
     const answeredCount = t.people.filter(p => p.status.includes('ตอบแล้ว')).length;
     const pendingCount = total - answeredCount;
     const pct = total ? Math.round((answeredCount/total)*100) : 0;
 
     document.getElementById('statAnswered').textContent = `${answeredCount} / ${total}`;
+    document.getElementById('teamCountHeading').textContent = `สถานะทีม (${total} คน)`;
     document.getElementById('statAnsweredSub').textContent = t.subject ? `เรื่อง "${t.subject}"` : 'ทีม Capacity Check';
     document.getElementById('statProgress').textContent = `${pct}%`;
     document.getElementById('statPending').textContent = pendingCount;
-    document.getElementById('statTotalMail').textContent = t.totalMail || logRows.length || 0;
+    document.getElementById('statTotalMail').textContent = (t.totalMail || logRows.length || 0).toLocaleString('th-TH');
     document.getElementById('subjectHint').textContent = t.subject ? `Subject: ${t.subject}` : '';
 
-    // ring
+    // ring — animate from 0 on next frame
     const circumference = 2 * Math.PI * 50;
     const ringFg = document.getElementById('ringFg');
+    ringFg.style.transition = 'none';
     ringFg.setAttribute('stroke-dasharray', circumference.toFixed(1));
-    ringFg.setAttribute('stroke-dashoffset', (circumference * (1 - pct/100)).toFixed(1));
-    document.getElementById('ringNum').textContent = `${pct}%`;
+    ringFg.setAttribute('stroke-dashoffset', circumference.toFixed(1));
+    document.getElementById('ringNum').textContent = `0%`;
+    requestAnimationFrame(()=>{
+      requestAnimationFrame(()=>{
+        ringFg.style.transition = '';
+        ringFg.setAttribute('stroke-dashoffset', (circumference * (1 - pct/100)).toFixed(1));
+        animateCount(document.getElementById('ringNum'), pct, '%');
+      });
+    });
 
     // progress bars (by reply count, sorted desc)
     const sorted = t.people.slice().sort((a,b)=> b.count - a.count);
     const maxCount = Math.max(1, ...sorted.map(p=>p.count));
     const barsEl = document.getElementById('progressBars');
     barsEl.innerHTML = sorted.map(p=>{
-      const isAnswered = p.status.includes('ตอบแล้ว');
-      const color = isAnswered ? 'var(--green)' : 'var(--amber)';
+      const u = urgencyOf(p);
+      const color = u === 'green' ? 'var(--green)' : u === 'amber' ? 'var(--amber)' : 'var(--red)';
       const widthPct = Math.max(4, (p.count / maxCount) * 100);
       return `<div class="pbar-row">
         <span class="pname">${escapeHtml(shortName(p.name))}</span>
-        <span class="pbar-track"><span class="pbar-fill" style="width:${widthPct}%; background:${color};"></span></span>
+        <span class="pbar-track"><span class="pbar-fill" data-w="${widthPct}" style="background:${color};"></span></span>
         <span class="pbar-count mono">${p.count}</span>
       </div>`;
     }).join('');
+    requestAnimationFrame(()=>{
+      barsEl.querySelectorAll('.pbar-fill').forEach(el=>{ el.style.width = el.dataset.w + '%'; });
+    });
 
-    // team grid
+    renderTeamGrid(t.people);
+  }
+
+  function animateCount(el, target, suffix){
+    const start = 0, dur = 700, t0 = performance.now();
+    function step(now){
+      const p = Math.min(1, (now - t0) / dur);
+      const eased = 1 - Math.pow(1-p, 3);
+      el.textContent = Math.round(start + (target-start)*eased) + suffix;
+      if(p < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  function renderTeamGrid(people){
     const teamEl = document.getElementById('teamGrid');
-    teamEl.innerHTML = t.people.map(p=>{
-      const isAnswered = p.status.includes('ตอบแล้ว');
-      const colorClass = isAnswered ? 'green' : 'amber';
+    const sortedPeople = people.slice().sort((a,b)=>{
+      const ua = urgencyRank(urgencyOf(a)), ub = urgencyRank(urgencyOf(b));
+      if(ua !== ub) return ua - ub;
+      return shortName(a.name).localeCompare(shortName(b.name), 'th');
+    });
+    teamEl.innerHTML = sortedPeople.map(p=>{
+      const u = urgencyOf(p);
       const name = shortName(p.name);
-      return `<div class="person-card">
-        <div class="avatar ${colorClass}">${escapeHtml(initials(name))}</div>
+      const isPending = u !== 'green';
+      return `<div class="person-card" data-pending="${isPending}">
+        <div class="avatar ${u}">${escapeHtml(initials(name))}</div>
         <div class="person-info">
           <div class="person-name" title="${escapeHtml(name)}">${escapeHtml(name)}</div>
-          <div class="person-status"><span class="dot ${colorClass}"></span>${escapeHtml(p.status)}</div>
+          <div class="person-status"><span class="dot ${u}"></span>${escapeHtml(urgencyLabel(u))}</div>
           <div class="person-meta">${p.lastReply ? 'ตอบล่าสุด: '+escapeHtml(p.lastReply) : 'ยังไม่มีการตอบกลับ'} · สะสม ${p.count} ครั้ง</div>
         </div>
       </div>`;
     }).join('');
+    applyPendingFilter();
   }
 
-  function renderChart(rows){
+  function applyPendingFilter(){
+    const cards = document.querySelectorAll('#teamGrid .person-card');
+    const hint = document.getElementById('teamFilterHint');
+    cards.forEach(c=>{
+      const pending = c.dataset.pending === 'true';
+      c.hidden = pendingFilterActive && !pending;
+    });
+    hint.textContent = pendingFilterActive
+      ? 'กำลังแสดงเฉพาะคนที่ยังไม่ตอบ — คลิกการ์ด "ยังไม่ตอบ" อีกครั้งเพื่อดูทั้งหมด'
+      : 'เรียงตามความเร่งด่วน — คนที่ยังไม่เคยตอบเลยขึ้นก่อน';
+  }
+
+  document.getElementById('pendingCard').addEventListener('click', ()=>{
+    pendingFilterActive = !pendingFilterActive;
+    document.getElementById('pendingCard').style.borderColor = pendingFilterActive ? 'var(--amber)' : '';
+    applyPendingFilter();
+    document.getElementById('teamGrid').scrollIntoView({behavior:'smooth', block:'center'});
+  });
+
+  // ===== Chart with tooltip + granularity toggle =====
+  function bucketKey(dateMs, gran){
+    const d = new Date(dateMs);
+    if(gran === 'day'){
+      return d.toISOString().slice(0,10);
+    } else if(gran === 'week'){
+      const day = new Date(d);
+      const dow = (day.getDay()+6)%7; // Mon=0
+      day.setDate(day.getDate()-dow);
+      return day.toISOString().slice(0,10);
+    } else {
+      return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    }
+  }
+  function bucketLabel(key, gran){
+    if(gran === 'month'){
+      const [y,m] = key.split('-');
+      const names = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+      return names[parseInt(m,10)-1] + ' ' + y;
+    }
+    return key.slice(5); // mm-dd
+  }
+
+  const tooltipEl = document.getElementById('chartTooltip');
+  let lastPoints = [], lastKeys = [], lastGran = 'day';
+
+  function renderChart(rows, gran){
+    lastGran = gran;
     const svg = document.getElementById('trendChart');
     const withDate = rows.filter(r => r._sortDate);
     if(withDate.length === 0){
       svg.innerHTML = `<text x="500" y="110" text-anchor="middle" fill="#9aa0ab" font-size="13" font-family="IBM Plex Sans Thai">ยังไม่มีข้อมูลในชีต Log สำหรับแสดงแนวโน้ม</text>`;
+      lastPoints = []; lastKeys = [];
       return;
     }
-    // group by date (yyyy-mm-dd)
     const counts = {};
     withDate.forEach(r=>{
-      const d = new Date(r._sortDate);
-      const key = d.toISOString().slice(0,10);
+      const key = bucketKey(r._sortDate, gran);
       counts[key] = (counts[key]||0) + 1;
     });
     const keys = Object.keys(counts).sort();
     const vals = keys.map(k=>counts[k]);
     const maxV = Math.max(...vals, 1);
+    const avg = vals.reduce((a,b)=>a+b,0) / vals.length;
 
     const W = 1000, H = 220, padL = 36, padR = 16, padT = 16, padB = 32;
     const innerW = W - padL - padR, innerH = H - padT - padB;
@@ -628,38 +827,73 @@
       const y = padT + innerH - (counts[k]/maxV)*innerH;
       return [x,y];
     });
+    lastPoints = points; lastKeys = keys;
 
     const linePath = points.map((p,i)=> (i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
     const areaPath = linePath + ` L${points[points.length-1][0].toFixed(1)},${padT+innerH} L${points[0][0].toFixed(1)},${padT+innerH} Z`;
 
-    // grid lines (4 horizontal)
     let gridLines = '';
     for(let i=0;i<=3;i++){
       const y = padT + innerH - (innerH*i/3);
       gridLines += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="#E4E0D8" stroke-width="1"/>`;
     }
 
-    // x labels: show at most 7 evenly spaced
+    const avgY = padT + innerH - (avg/maxV)*innerH;
+    const avgLine = `<line x1="${padL}" y1="${avgY.toFixed(1)}" x2="${W-padR}" y2="${avgY.toFixed(1)}" stroke="#C7CCD8" stroke-width="1.5" stroke-dasharray="4 4"/>
+      <text x="${W-padR}" y="${(avgY-5).toFixed(1)}" text-anchor="end" font-size="10.5" fill="#9CA8C2" font-family="IBM Plex Mono">เฉลี่ย ${avg.toFixed(1)}</text>`;
+
     const labelEvery = Math.max(1, Math.ceil(keys.length/7));
     let xLabels = '';
     keys.forEach((k,i)=>{
       if(i % labelEvery !== 0 && i !== keys.length-1) return;
       const x = points[i][0];
-      const lbl = k.slice(5); // mm-dd
-      xLabels += `<text x="${x.toFixed(1)}" y="${H-8}" text-anchor="middle" font-size="11" fill="#5C6478" font-family="IBM Plex Mono">${lbl}</text>`;
+      xLabels += `<text x="${x.toFixed(1)}" y="${H-8}" text-anchor="middle" font-size="11" fill="#5C6478" font-family="IBM Plex Mono">${bucketLabel(k,gran)}</text>`;
     });
 
-    const dots = points.map((p,i)=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.5" fill="#1F9E76"><title>${keys[i]}: ${vals[i]}</title></circle>`).join('');
+    const dots = points.map((p,i)=>`<circle class="hover-dot" data-idx="${i}" cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.5" fill="#1F9E76" style="cursor:pointer;"/>`).join('');
+    const hitAreas = points.map((p,i)=>`<circle data-idx="${i}" cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="12" fill="transparent" style="cursor:pointer;"/>`).join('');
 
     svg.innerHTML = `
       ${gridLines}
+      ${avgLine}
       <path d="${areaPath}" fill="rgba(31,158,118,0.12)" stroke="none"/>
       <path d="${linePath}" fill="none" stroke="#1F9E76" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
       ${dots}
       ${xLabels}
+      ${hitAreas}
     `;
+
+    svg.querySelectorAll('circle[data-idx]').forEach(c=>{
+      c.addEventListener('mouseenter', onDotHover);
+      c.addEventListener('mousemove', onDotHover);
+      c.addEventListener('mouseleave', ()=>{ tooltipEl.style.opacity = 0; });
+    });
+
+    function onDotHover(e){
+      const idx = parseInt(e.currentTarget.dataset.idx, 10);
+      const key = lastKeys[idx];
+      const val = counts[key];
+      const rect = svg.getBoundingClientRect();
+      const wrapRect = svg.parentElement.getBoundingClientRect();
+      const px = (lastPoints[idx][0] / W) * rect.width;
+      const py = (lastPoints[idx][1] / H) * rect.height;
+      tooltipEl.style.left = (px) + 'px';
+      tooltipEl.style.top = (py - 8) + 'px';
+      tooltipEl.innerHTML = `<div class="d">${bucketLabel(key,gran)}</div><div class="v">${val} อีเมล</div>`;
+      tooltipEl.style.opacity = 1;
+    }
   }
 
+  document.querySelectorAll('#chartSeg button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('#chartSeg button').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      chartGran = btn.dataset.gran;
+      renderChart(logRows, chartGran);
+    });
+  });
+
+  // ===== Monthly summary (accordion) =====
   function renderMonthly(rows){
     const wrap = document.getElementById('monthlyWrap');
     const withDate = rows.filter(r => r._sortDate);
@@ -687,24 +921,26 @@
       yearGroups[year].people.add(person);
     });
 
-    const years = Object.keys(yearGroups).sort().reverse(); // newest year first
+    const years = Object.keys(yearGroups).sort().reverse();
+    const latestYear = years[0];
 
     let rowsHtml = '';
     years.forEach(year=>{
       const yg = yearGroups[year];
-      rowsHtml += `<tr class="year-row">
-        <td>ปี ${year}</td>
+      const isCollapsed = year !== latestYear;
+      rowsHtml += `<tr class="year-row${isCollapsed?' collapsed':''}" data-year="${year}">
+        <td><span class="chev">▾</span>ปี ${year}</td>
         <td class="num">${yg.count.toLocaleString('th-TH')}</td>
         <td class="num">${yg.people.size}</td>
       </tr>`;
 
       const monthKeys = Object.keys(monthGroups)
         .filter(k => monthGroups[k].year === Number(year))
-        .sort().reverse(); // newest month first within the year
+        .sort().reverse();
 
       monthKeys.forEach(k=>{
         const g = monthGroups[k];
-        rowsHtml += `<tr class="month-row">
+        rowsHtml += `<tr class="month-row" data-year="${year}" ${isCollapsed?'hidden':''}>
           <td class="month-name">${monthNamesTh[g.month]}</td>
           <td class="num">${g.count.toLocaleString('th-TH')}</td>
           <td class="num">${g.people.size}</td>
@@ -724,7 +960,59 @@
         <tbody>${rowsHtml}</tbody>
       </table>
     `;
+
+    wrap.querySelectorAll('tr.year-row').forEach(yr=>{
+      yr.addEventListener('click', ()=>{
+        const year = yr.dataset.year;
+        const collapsed = yr.classList.toggle('collapsed');
+        wrap.querySelectorAll(`tr.month-row[data-year="${year}"]`).forEach(mr=>{
+          mr.hidden = collapsed;
+        });
+      });
+    });
+
+    // trend pill on "total mail" stat: compare latest bucket vs previous
+    const monthKeysAll = Object.keys(monthGroups).sort();
+    const totalSub = document.getElementById('statTotalMailSub');
+    if(monthKeysAll.length >= 2){
+      const latest = monthGroups[monthKeysAll[monthKeysAll.length-1]].count;
+      const prev = monthGroups[monthKeysAll[monthKeysAll.length-2]].count;
+      const diff = latest - prev;
+      const pct = prev ? Math.round((diff/prev)*100) : 0;
+      const cls = diff > 0 ? 'up' : diff < 0 ? 'down' : 'flat';
+      const arrow = diff > 0 ? '▲' : diff < 0 ? '▼' : '—';
+      totalSub.innerHTML = `<span class="trend-pill ${cls}">${arrow} ${Math.abs(pct)}%</span> เทียบเดือนก่อนหน้า`;
+    } else {
+      totalSub.textContent = 'ทุกรอบที่บันทึกไว้';
+    }
   }
+
+  // ===== Log table: sort, search, paginate, export =====
+  function applySearchAndSort(){
+    const q = document.getElementById('searchInput').value.trim().toLowerCase();
+    filteredRows = logRows.filter(r=>{
+      if(!q) return true;
+      return (r.matchedName+r.sender+r.subject+r.keyword+r.dateLabel).toLowerCase().includes(q);
+    });
+    filteredRows.sort((a,b)=>{
+      let va = a[sortKey], vb = b[sortKey];
+      if(sortKey === '_sortDate'){ va = va||0; vb = vb||0; }
+      else { va = (va||'').toString().toLowerCase(); vb = (vb||'').toString().toLowerCase(); }
+      if(va < vb) return -1*sortDir;
+      if(va > vb) return 1*sortDir;
+      return 0;
+    });
+    currentPage = 1;
+    renderTable();
+  }
+
+  const columns = [
+    { key:'_sortDate', label:'วันที่/เวลา', field:'dateLabel' },
+    { key:'matchedName', label:'ชื่อที่ matched' },
+    { key:'sender', label:'ผู้ส่งจริง' },
+    { key:'subject', label:'Subject' },
+    { key:'keyword', label:'Keyword (รอบ)' },
+  ];
 
   function renderTable(){
     const wrap = document.getElementById('tableWrap');
@@ -742,16 +1030,16 @@
     const start = (currentPage-1)*PAGE_SIZE;
     const pageRows = filteredRows.slice(start, start+PAGE_SIZE);
 
+    const theadCells = columns.map(c=>{
+      const sorted = c.key === sortKey;
+      const arrow = sorted ? (sortDir === 1 ? '▲' : '▼') : '↕';
+      return `<th data-key="${c.key}" class="${sorted?'sorted':''}">${c.label} <span class="arrow">${arrow}</span></th>`;
+    }).join('');
+
     wrap.innerHTML = `
       <table class="log-table">
         <thead>
-          <tr>
-            <th>วันที่/เวลา</th>
-            <th>ชื่อที่ matched</th>
-            <th>ผู้ส่งจริง</th>
-            <th>Subject</th>
-            <th>Keyword (รอบ)</th>
-          </tr>
+          <tr>${theadCells}</tr>
         </thead>
         <tbody>
           ${pageRows.map(r=>`
@@ -767,6 +1055,15 @@
       </table>
     `;
 
+    wrap.querySelectorAll('thead th').forEach(th=>{
+      th.addEventListener('click', ()=>{
+        const key = th.dataset.key;
+        if(sortKey === key){ sortDir *= -1; }
+        else { sortKey = key; sortDir = key === '_sortDate' ? -1 : 1; }
+        applySearchAndSort();
+      });
+    });
+
     footer.style.display = 'flex';
     document.getElementById('pageInfo').textContent = `หน้า ${currentPage} / ${totalPages} (แสดง ${start+1}-${Math.min(start+PAGE_SIZE, filteredRows.length)} จาก ${filteredRows.length})`;
     document.getElementById('prevPage').disabled = currentPage <= 1;
@@ -775,15 +1072,33 @@
 
   document.getElementById('prevPage').addEventListener('click', ()=>{ currentPage--; renderTable(); });
   document.getElementById('nextPage').addEventListener('click', ()=>{ currentPage++; renderTable(); });
-
-  document.getElementById('searchInput').addEventListener('input', e=>{
-    const q = e.target.value.trim().toLowerCase();
-    filteredRows = logRows.filter(r=>{
-      if(!q) return true;
-      return (r.matchedName+r.sender+r.subject+r.keyword+r.dateLabel).toLowerCase().includes(q);
-    }).sort((a,b)=> (b._sortDate||0) - (a._sortDate||0));
+  document.getElementById('pageSizeSelect').addEventListener('change', e=>{
+    PAGE_SIZE = parseInt(e.target.value, 10);
     currentPage = 1;
     renderTable();
+  });
+  document.getElementById('searchInput').addEventListener('input', applySearchAndSort);
+
+  document.getElementById('exportBtn').addEventListener('click', ()=>{
+    if(filteredRows.length === 0) return;
+    const header = ['วันที่/เวลา','ชื่อที่ matched','ผู้ส่งจริง','Subject','Keyword'];
+    const csvRows = [header.join(',')];
+    filteredRows.forEach(r=>{
+      const line = [r.dateLabel, shortName(r.matchedName), r.sender, r.subject, r.keyword]
+        .map(v => `"${(v||'').toString().replace(/"/g,'""')}"`)
+        .join(',');
+      csvRows.push(line);
+    });
+    const csvContent = '\uFEFF' + csvRows.join('\r\n');
+    const blob = new Blob([csvContent], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `capacity_log_export_${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   });
 
 })();
