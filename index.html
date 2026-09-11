@@ -574,9 +574,24 @@
     dashboard.style.display = 'block';
   }
 
+  function normalizeExcelDate(d){
+    if(!(d instanceof Date) || isNaN(d.getTime())) return d;
+    const nowY = new Date().getFullYear();
+    // If the year is implausibly far in the future, the source cell almost certainly
+    // had a Buddhist-era (พ.ศ.) year typed straight into a Gregorian date field
+    // (e.g. 8/8/2569 instead of 8/8/2026). Undo the +543 offset so downstream
+    // sorting/grouping/display all use the correct Gregorian year.
+    if(d.getFullYear() > nowY + 100){
+      const fixed = new Date(d);
+      fixed.setFullYear(d.getFullYear() - 543);
+      return fixed;
+    }
+    return d;
+  }
+
   function cellStr(v){
     if(v === null || v === undefined) return '';
-    if(v instanceof Date) return v.toLocaleString('th-TH');
+    if(v instanceof Date) return normalizeExcelDate(v).toLocaleString('th-TH', {calendar:'gregory'});
     return String(v).trim();
   }
 
@@ -633,8 +648,9 @@
       if(!matched && !sender && !subj && !dateVal) continue;
       let dt = null, dtLabel = '';
       if(dateVal instanceof Date){
-        dt = dateVal.getTime();
-        dtLabel = dateVal.toLocaleString('th-TH',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+        const fixed = normalizeExcelDate(dateVal);
+        dt = fixed.getTime();
+        dtLabel = fixed.toLocaleString('th-TH',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',calendar:'gregory'});
       } else if(dateVal){
         dtLabel = cellStr(dateVal);
         const parsed = Date.parse(dtLabel);
