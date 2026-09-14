@@ -225,16 +225,28 @@
 
   /* chart */
   .chart-wrap{ position:relative; }
-  #trendChart{ width:100%; height:220px; display:block; }
+  #trendChart{ width:100%; height:260px; display:block; overflow:visible; }
   .chart-tooltip{
     position:absolute; pointer-events:none; z-index:5;
-    background:var(--navy); color:#fff; padding:7px 11px; border-radius:8px;
-    font-size:12px; line-height:1.5; white-space:nowrap; opacity:0; transition:opacity .1s;
-    transform:translate(-50%,-100%);
-    box-shadow:var(--shadow);
+    background:var(--navy); color:#fff; padding:9px 13px; border-radius:10px;
+    font-size:12px; line-height:1.5; white-space:nowrap; opacity:0; transition:opacity .12s, transform .12s;
+    transform:translate(-50%,calc(-100% - 12px)) scale(.96);
+    box-shadow:0 6px 20px rgba(27,37,56,0.28);
   }
-  .chart-tooltip .d{ color:#9CA8C2; font-size:10.5px; }
-  .chart-tooltip .v{ font-weight:600; font-family:'IBM Plex Mono',monospace; }
+  .chart-tooltip.show{ opacity:1; transform:translate(-50%,calc(-100% - 12px)) scale(1); }
+  .chart-tooltip::after{
+    content:""; position:absolute; left:50%; bottom:-5px; transform:translateX(-50%);
+    width:9px; height:9px; background:var(--navy); border-radius:2px;
+    clip-path:polygon(0 0, 100% 0, 50% 100%);
+  }
+  .chart-tooltip .d{ color:#9CA8C2; font-size:10.5px; letter-spacing:.02em; }
+  .chart-tooltip .v{ font-weight:600; font-family:'IBM Plex Mono',monospace; font-size:14px; }
+  .chart-tooltip .v span{ color:#7FD6B4; font-size:11px; font-weight:500; margin-left:5px; font-family:'IBM Plex Sans Thai'; }
+  #trendChart .hover-dot{ transition:r .15s ease, filter .15s ease; cursor:pointer; }
+  #monthlyBarWrap{ margin-bottom:22px; }
+  #monthlyBarChart{ width:100%; height:170px; display:block; overflow:visible; }
+  #monthlyBarChart .bar{ cursor:pointer; transition:opacity .15s ease; }
+  #monthlyBarChart .bar:hover{ opacity:0.85; }
 
   /* table */
   .table-controls{ display:flex; gap:10px; margin-bottom:14px; align-items:center; }
@@ -363,6 +375,10 @@
           <h3>สรุปรายเดือน</h3>
           <span class="hint">คลิกที่แถวปีเพื่อย่อ/ขยาย — แสดงเฉพาะปีล่าสุดเป็นค่าเริ่มต้น</span>
         </div>
+        <div class="chart-wrap" id="monthlyBarWrap">
+          <svg id="monthlyBarChart" viewBox="0 0 1000 200" preserveAspectRatio="none"></svg>
+          <div class="chart-tooltip" id="monthlyBarTooltip"></div>
+        </div>
         <div id="monthlyWrap"></div>
       </div>
 
@@ -433,7 +449,7 @@
           </div>
         </div>
         <div class="chart-wrap">
-          <svg id="trendChart" viewBox="0 0 1000 220" preserveAspectRatio="none"></svg>
+          <svg id="trendChart" viewBox="0 0 1000 260" preserveAspectRatio="none"></svg>
           <div class="chart-tooltip" id="chartTooltip"></div>
         </div>
       </div>
@@ -815,12 +831,30 @@
   const tooltipEl = document.getElementById('chartTooltip');
   let lastPoints = [], lastKeys = [], lastGran = 'day';
 
+  // Catmull-Rom → cubic Bézier smoothing so the trend line reads as one
+  // continuous curve rather than a jagged polyline.
+  function smoothPath(points){
+    if(points.length === 0) return '';
+    if(points.length === 1) return `M${points[0][0].toFixed(1)},${points[0][1].toFixed(1)}`;
+    let d = `M${points[0][0].toFixed(1)},${points[0][1].toFixed(1)}`;
+    for(let i=0;i<points.length-1;i++){
+      const p0 = points[i-1] || points[i];
+      const p1 = points[i];
+      const p2 = points[i+1];
+      const p3 = points[i+2] || p2;
+      const c1x = p1[0] + (p2[0]-p0[0])/6, c1y = p1[1] + (p2[1]-p0[1])/6;
+      const c2x = p2[0] - (p3[0]-p1[0])/6, c2y = p2[1] - (p3[1]-p1[1])/6;
+      d += ` C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
+    }
+    return d;
+  }
+
   function renderChart(rows, gran){
     lastGran = gran;
     const svg = document.getElementById('trendChart');
     const withDate = rows.filter(r => r._sortDate);
     if(withDate.length === 0){
-      svg.innerHTML = `<text x="500" y="110" text-anchor="middle" fill="#9aa0ab" font-size="13" font-family="IBM Plex Sans Thai">ยังไม่มีข้อมูลในชีต Log สำหรับแสดงแนวโน้ม</text>`;
+      svg.innerHTML = `<text x="500" y="130" text-anchor="middle" fill="#9aa0ab" font-size="13" font-family="IBM Plex Sans Thai">ยังไม่มีข้อมูลในชีต Log สำหรับแสดงแนวโน้ม</text>`;
       lastPoints = []; lastKeys = [];
       return;
     }
@@ -834,69 +868,112 @@
     const maxV = Math.max(...vals, 1);
     const avg = vals.reduce((a,b)=>a+b,0) / vals.length;
 
-    const W = 1000, H = 220, padL = 36, padR = 16, padT = 16, padB = 32;
+    const W = 1000, H = 260, padL = 34, padR = 20, padT = 24, padB = 34;
     const innerW = W - padL - padR, innerH = H - padT - padB;
     const stepX = keys.length > 1 ? innerW/(keys.length-1) : 0;
+    // headroom so the peak point never touches the top edge
+    const yFor = v => padT + innerH*0.08 + (innerH*0.92) - (v/maxV)*(innerH*0.92);
 
     const points = keys.map((k,i)=>{
       const x = padL + (keys.length>1 ? i*stepX : innerW/2);
-      const y = padT + innerH - (counts[k]/maxV)*innerH;
+      const y = yFor(counts[k]);
       return [x,y];
     });
     lastPoints = points; lastKeys = keys;
 
-    const linePath = points.map((p,i)=> (i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
-    const areaPath = linePath + ` L${points[points.length-1][0].toFixed(1)},${padT+innerH} L${points[0][0].toFixed(1)},${padT+innerH} Z`;
+    const linePath = smoothPath(points);
+    const floorY = padT + innerH;
+    const areaPath = linePath + ` L${points[points.length-1][0].toFixed(1)},${floorY} L${points[0][0].toFixed(1)},${floorY} Z`;
 
     let gridLines = '';
     for(let i=0;i<=3;i++){
       const y = padT + innerH - (innerH*i/3);
-      gridLines += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="#E4E0D8" stroke-width="1"/>`;
+      gridLines += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="#EAE7E0" stroke-width="1"/>`;
     }
 
-    const avgY = padT + innerH - (avg/maxV)*innerH;
-    const avgLine = `<line x1="${padL}" y1="${avgY.toFixed(1)}" x2="${W-padR}" y2="${avgY.toFixed(1)}" stroke="#C7CCD8" stroke-width="1.5" stroke-dasharray="4 4"/>
-      <text x="${W-padR}" y="${(avgY-5).toFixed(1)}" text-anchor="end" font-size="10.5" fill="#9CA8C2" font-family="IBM Plex Mono">เฉลี่ย ${avg.toFixed(1)}</text>`;
+    const avgY = yFor(avg);
+    const pillW = 30 + avg.toFixed(1).length*6.5;
+    const avgLine = `
+      <line x1="${padL}" y1="${avgY.toFixed(1)}" x2="${W-padR}" y2="${avgY.toFixed(1)}" stroke="#C7CCD8" stroke-width="1.3" stroke-dasharray="3 4"/>
+      <rect x="${(W-padR-pillW).toFixed(1)}" y="${(avgY-17).toFixed(1)}" width="${pillW.toFixed(1)}" height="16" rx="8" fill="var(--paper)"/>
+      <text x="${(W-padR-pillW/2).toFixed(1)}" y="${(avgY-6).toFixed(1)}" text-anchor="middle" font-size="10" fill="#8A91A3" font-family="IBM Plex Mono">เฉลี่ย ${avg.toFixed(1)}</text>`;
 
     const labelEvery = Math.max(1, Math.ceil(keys.length/7));
     let xLabels = '';
     keys.forEach((k,i)=>{
       if(i % labelEvery !== 0 && i !== keys.length-1) return;
       const x = points[i][0];
-      xLabels += `<text x="${x.toFixed(1)}" y="${H-8}" text-anchor="middle" font-size="11" fill="#5C6478" font-family="IBM Plex Mono">${bucketLabel(k,gran)}</text>`;
+      xLabels += `<text x="${x.toFixed(1)}" y="${H-10}" text-anchor="middle" font-size="11" fill="#8A91A3" font-family="IBM Plex Mono">${bucketLabel(k,gran)}</text>`;
     });
 
-    const dots = points.map((p,i)=>`<circle class="hover-dot" data-idx="${i}" cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.5" fill="#1F9E76" style="cursor:pointer;"/>`).join('');
-    const hitAreas = points.map((p,i)=>`<circle data-idx="${i}" cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="12" fill="transparent" style="cursor:pointer;"/>`).join('');
+    const dots = points.map((p,i)=>`<circle class="hover-dot" data-idx="${i}" cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.5" fill="#fff" stroke="#1F9E76" stroke-width="2"/>`).join('');
+    const hitAreas = points.map((p,i)=>`<circle data-idx="${i}" cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="14" fill="transparent" style="cursor:pointer;"/>`).join('');
 
     svg.innerHTML = `
+      <defs>
+        <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#1F9E76" stop-opacity="0.30"/>
+          <stop offset="100%" stop-color="#1F9E76" stop-opacity="0"/>
+        </linearGradient>
+        <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#17805F"/>
+          <stop offset="100%" stop-color="#2CBE8E"/>
+        </linearGradient>
+      </defs>
       ${gridLines}
       ${avgLine}
-      <path d="${areaPath}" fill="rgba(31,158,118,0.12)" stroke="none"/>
-      <path d="${linePath}" fill="none" stroke="#1F9E76" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
-      ${dots}
+      <path class="area-path" d="${areaPath}" fill="url(#areaGrad)" stroke="none" opacity="0"/>
+      <path class="line-path" d="${linePath}" fill="none" stroke="url(#lineGrad)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+      <g class="dots-g" opacity="0">${dots}</g>
       ${xLabels}
       ${hitAreas}
     `;
 
+    // animate the line drawing in, then fade the area + dots
+    const linePathEl = svg.querySelector('.line-path');
+    const areaPathEl = svg.querySelector('.area-path');
+    const dotsG = svg.querySelector('.dots-g');
+    requestAnimationFrame(()=>{
+      const len = linePathEl.getTotalLength();
+      linePathEl.style.strokeDasharray = len;
+      linePathEl.style.strokeDashoffset = len;
+      linePathEl.style.transition = 'none';
+      requestAnimationFrame(()=>{
+        linePathEl.style.transition = `stroke-dashoffset ${Math.min(1400, 500+len)}ms cubic-bezier(.4,0,.2,1)`;
+        linePathEl.style.strokeDashoffset = 0;
+        areaPathEl.style.transition = 'opacity .8s ease .3s';
+        areaPathEl.style.opacity = 1;
+        dotsG.style.transition = 'opacity .5s ease .5s';
+        dotsG.style.opacity = 1;
+      });
+    });
+
     svg.querySelectorAll('circle[data-idx]').forEach(c=>{
       c.addEventListener('mouseenter', onDotHover);
       c.addEventListener('mousemove', onDotHover);
-      c.addEventListener('mouseleave', ()=>{ tooltipEl.style.opacity = 0; });
+      c.addEventListener('mouseleave', e=>{
+        tooltipEl.classList.remove('show');
+        const idx = e.currentTarget.dataset.idx;
+        const dot = svg.querySelector(`.hover-dot[data-idx="${idx}"]`);
+        if(dot){ dot.setAttribute('r', 3.5); dot.style.filter = ''; }
+      });
     });
 
     function onDotHover(e){
       const idx = parseInt(e.currentTarget.dataset.idx, 10);
       const key = lastKeys[idx];
       const val = counts[key];
+      const dot = svg.querySelector(`.hover-dot[data-idx="${idx}"]`);
+      if(dot){ dot.setAttribute('r', 6); dot.style.filter = 'drop-shadow(0 2px 6px rgba(31,158,118,.5))'; }
       const rect = svg.getBoundingClientRect();
-      const wrapRect = svg.parentElement.getBoundingClientRect();
       const px = (lastPoints[idx][0] / W) * rect.width;
       const py = (lastPoints[idx][1] / H) * rect.height;
       tooltipEl.style.left = (px) + 'px';
-      tooltipEl.style.top = (py - 8) + 'px';
-      tooltipEl.innerHTML = `<div class="d">${bucketLabel(key,gran)}</div><div class="v">${val} อีเมล</div>`;
-      tooltipEl.style.opacity = 1;
+      tooltipEl.style.top = (py) + 'px';
+      const vsAvg = val - avg;
+      const cmp = vsAvg > 0.05 ? `<span>+${vsAvg.toFixed(1)} จากเฉลี่ย</span>` : vsAvg < -0.05 ? `<span style="color:#F2A490">${vsAvg.toFixed(1)} จากเฉลี่ย</span>` : '';
+      tooltipEl.innerHTML = `<div class="d">${bucketLabel(key,gran)}</div><div class="v">${val} อีเมล ${cmp}</div>`;
+      tooltipEl.classList.add('show');
     }
   }
 
@@ -915,6 +992,7 @@
     const withDate = rows.filter(r => r._sortDate);
     if(withDate.length === 0){
       wrap.innerHTML = `<div class="table-empty">ยังไม่มีข้อมูลในชีต Log สำหรับสรุปรายเดือน</div>`;
+      document.getElementById('monthlyBarChart').innerHTML = '';
       return;
     }
 
@@ -964,6 +1042,8 @@
       });
     });
 
+    renderMonthlyBarChart(monthGroups, monthNamesTh);
+
     wrap.innerHTML = `
       <table class="monthly-table">
         <thead>
@@ -1000,6 +1080,89 @@
       totalSub.innerHTML = `<span class="trend-pill ${cls}">${arrow} ${Math.abs(pct)}%</span> เทียบเดือนก่อนหน้า`;
     } else {
       totalSub.textContent = 'ทุกรอบที่บันทึกไว้';
+    }
+  }
+
+  function renderMonthlyBarChart(monthGroups, monthNamesTh){
+    const svg = document.getElementById('monthlyBarChart');
+    const tooltipEl = document.getElementById('monthlyBarTooltip');
+    const keys = Object.keys(monthGroups).sort().slice(-12); // last 12 months, oldest→newest
+    if(keys.length === 0){ svg.innerHTML = ''; return; }
+
+    const maxV = Math.max(...keys.map(k=>monthGroups[k].count), 1);
+    const W = 1000, H = 200, padL = 30, padR = 12, padT = 20, padB = 30;
+    const innerW = W - padL - padR, innerH = H - padT - padB;
+    const gap = 10;
+    const bw = (innerW / keys.length) - gap;
+
+    let gridLines = '';
+    for(let i=0;i<=3;i++){
+      const y = padT + innerH - (innerH*i/3);
+      gridLines += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="#EAE7E0" stroke-width="1"/>`;
+    }
+
+    let bars = '', labels = '', valueLabels = '';
+    keys.forEach((k,i)=>{
+      const g = monthGroups[k];
+      const x = padL + i*(bw+gap);
+      const h = Math.max(3, (g.count/maxV)*innerH);
+      const y = padT + innerH - h;
+      const isLatest = i === keys.length-1;
+      const fill = isLatest ? 'url(#barGradActive)' : 'url(#barGrad)';
+      bars += `<rect class="bar" data-idx="${i}" x="${x.toFixed(1)}" y="${(padT+innerH).toFixed(1)}" width="${bw.toFixed(1)}" height="0" rx="5" fill="${fill}" data-target-y="${y.toFixed(1)}" data-target-h="${h.toFixed(1)}"/>`;
+      valueLabels += `<text data-idx="${i}" class="bar-val" x="${(x+bw/2).toFixed(1)}" y="${(y-8).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="600" fill="${isLatest?'#1B2538':'#8A91A3'}" font-family="IBM Plex Mono" opacity="0">${g.count}</text>`;
+      labels += `<text x="${(x+bw/2).toFixed(1)}" y="${H-10}" text-anchor="middle" font-size="10.5" fill="#8A91A3" font-family="IBM Plex Mono">${monthNamesTh[g.month]} ${String(g.year).slice(-2)}</text>`;
+    });
+
+    svg.innerHTML = `
+      <defs>
+        <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#B7C0D6"/>
+          <stop offset="100%" stop-color="#D7DBE6"/>
+        </linearGradient>
+        <linearGradient id="barGradActive" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#2CBE8E"/>
+          <stop offset="100%" stop-color="#17805F"/>
+        </linearGradient>
+      </defs>
+      ${gridLines}
+      ${bars}
+      ${valueLabels}
+      ${labels}
+    `;
+
+    // animate bars growing up from the baseline
+    requestAnimationFrame(()=>{
+      svg.querySelectorAll('.bar').forEach((el,i)=>{
+        el.style.transition = `y .6s cubic-bezier(.4,0,.2,1) ${i*30}ms, height .6s cubic-bezier(.4,0,.2,1) ${i*30}ms`;
+        el.setAttribute('y', el.dataset.targetY);
+        el.setAttribute('height', el.dataset.targetH);
+      });
+      svg.querySelectorAll('.bar-val').forEach((el,i)=>{
+        el.style.transition = `opacity .4s ease ${300+i*30}ms`;
+        el.setAttribute('opacity', 1);
+      });
+    });
+
+    svg.querySelectorAll('.bar').forEach(bar=>{
+      bar.addEventListener('mouseenter', onBarHover);
+      bar.addEventListener('mousemove', onBarHover);
+      bar.addEventListener('mouseleave', ()=> tooltipEl.classList.remove('show'));
+    });
+
+    function onBarHover(e){
+      const idx = parseInt(e.currentTarget.dataset.idx, 10);
+      const k = keys[idx];
+      const g = monthGroups[k];
+      const rect = svg.getBoundingClientRect();
+      const bx = parseFloat(e.currentTarget.getAttribute('x')) + bw/2;
+      const by = parseFloat(e.currentTarget.getAttribute('y'));
+      const px = (bx / W) * rect.width;
+      const py = (by / H) * rect.height;
+      tooltipEl.style.left = px + 'px';
+      tooltipEl.style.top = py + 'px';
+      tooltipEl.innerHTML = `<div class="d">${monthNamesTh[g.month]} ${g.year}</div><div class="v">${g.count} อีเมล <span>${g.people.size} คนตอบ</span></div>`;
+      tooltipEl.classList.add('show');
     }
   }
 
